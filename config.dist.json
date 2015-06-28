@@ -1,0 +1,12 @@
+{
+  "udp": {
+    "port": 8087
+  },
+  "http": {
+    "port": 8090
+  },
+  "realms": {
+    "foo": "bar",
+    "bar": "baz"
+  }
+}
