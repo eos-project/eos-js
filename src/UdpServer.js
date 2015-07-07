@@ -1,6 +1,7 @@
 "use strict";
 
-var dgram = require('dgram');
+var dgram = require("dgram")
+    , log = require("sgwin").with("udp");
 
 /**
  * UdpServer
@@ -29,10 +30,16 @@ UdpServer.prototype.start = function start(clb) {
     }
     clb = clb || function () {};
 
-    this.server = dgram.createSocket('udp4');
+    this.server = dgram.createSocket("udp4");
     this.server.on("message", this.onMessage.bind(this));
-    this.server.on("error", function(err) { clb(err); });
-    this.server.on("listening", function() { clb(); });
+    this.server.on("error", function(err) {
+        log.error(err);
+        clb(err);
+    });
+    this.server.on("listening", function() {
+        log.success("Server is listening");
+        clb();
+    });
     this.server.bind(this.port);
 };
 
@@ -42,7 +49,7 @@ UdpServer.prototype.start = function start(clb) {
  * @param {Buffer} message
  */
 UdpServer.prototype.onMessage = function onMessage(message) {
-
+    log.in("New incoming message :size bytes", {size: message.length});
     var chunks = message.toString().split("\n");
     if (chunks.length < 4) {
         this.onParseError();

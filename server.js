@@ -1,31 +1,21 @@
 "use strict";
 
-
 // Includes
-var chalk = require('chalk')
-    , fs = require("fs")
+var fs = require("fs")
     , Udp = require("./src/UdpServer")
     , Parser = require("./src/EosKey").Parser
     , Auth = require("./src/Authenticator")
     , Dispatcher = require("./src/Dispatcher")
-    , HttpServer = require("./src/HttpServer");
+    , HttpServer = require("./src/HttpServer")
+    , Log = require('sgwin');
 
 // Cli tools
-var cliSignature = "\n " + chalk.yellow.bold("EOS") + " " + chalk.yellow("realtime logging server") + "\n";
-var cliProgress = function (message) {console.log("  ■  " + message);};
-var cliSuccess = function (message) {console.log("  " + chalk.green.bold("■") + "  " + chalk.green(message));};
-var cliFail = function (message) {console.log("  " + chalk.red.bold("✖") + "  " + chalk.red(message))};
-
 var args = process.argv;
-
 
 if (args.indexOf("-h") >= 0 || args.indexOf("--help") >= 0 || args.length < 3) {
     // Help information
-    console.log(cliSignature);
-    console.log(
-        " usage: " + chalk.green("node server.js") + " " + chalk.cyan("<config.json>")
-    );
-    console.log(" inspect config.dist.json for common configuation patterns");
+    console.log("\n\n usage: node server.js <config.json>");
+    console.log(" inspect config.dist.json for common configuration patterns");
     console.log("");
 
     process.exit(1);
@@ -33,16 +23,16 @@ if (args.indexOf("-h") >= 0 || args.indexOf("--help") >= 0 || args.length < 3) {
 
 
 // Reading configuration
-console.log(cliSignature);
-cliProgress("Reading configuration file " + chalk.green(args[2]));
+var file = args[2];
+Log.info("Reading configuration file :file", {file: file});
 fs.readFile(args[2], function (err, done) {
     if (err) {
-        cliFail("Unable to read config file");
-        cliFail(err);
+        Log.error("Unable to read config from :file", {file: file});
+        Log.error(err);
         process.exit(2)
     } else {
         var cnf = JSON.parse(done);
-        cliSuccess("Config file read");
+        Log.success("Config loaded");
         startEos(cnf);
     }
 });
@@ -55,10 +45,10 @@ function startEos(config) {
     for (var realm in config.realms) {
         if (config.realms.hasOwnProperty(realm)) {
             auth.add(realm, config.realms[realm]);
-            cliProgress("Added reaml " + chalk.green(realm))
+            Log.info("Added realm :realm", {realm: realm});
         }
     }
-    cliProgress("Authenticator configured");
+    Log.info("Authenticator configured");
 
     var udp = new Udp(
         {
@@ -78,22 +68,33 @@ function startEos(config) {
     );
 
     // Start
-    cliProgress("Starting UDP server on port " + chalk.cyan(config.udp.port));
+    var udpReady = false;
+    var httpReady = false;
+    function onLoad() {
+        if (udpReady && httpReady) {
+            Log.success("EOS server ready to serve");
+        }
+    }
+    Log.info("Starting UDP server on :port", {port: config.udp.port});
     udp.start(function (err) {
         if (err) {
-            cliFail("Unable to listen UDP on port " + config.udp.port);
+            Log.error("Unable to listen UDP on :port", {port: config.udp.port});
             process.exit(5);
         } else {
-            cliSuccess("Udp server is listening on " + config.udp.port);
+            Log.success("Udp server is listening on :port", {port: config.udp.port});
+            udpReady = true;
+            onLoad();
         }
     });
-    cliProgress("Starting HTTP server on port " + chalk.cyan(config.http.port));
+    Log.info("Starting HTTP server on :port", {port: config.http.port});
     http.start(function (err) {
         if (err) {
-            cliFail("Unable to listen HTTP on port " + config.http.port);
+            Log.error("Unable to listen HTTP on :port ", {port: config.http.port});
             process.exit(5);
         } else {
-            cliSuccess("Http server is listening on " + config.http.port);
+            Log.success("Http server is listening :port", {port: config.http.port});
+            httpReady = true;
+            onLoad();
         }
     });
 }

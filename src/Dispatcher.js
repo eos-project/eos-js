@@ -1,5 +1,7 @@
 "use strict";
 
+var log = require("sgwin").with("dispatch");
+
 /**
  * Dispatcher object
  * Used to deliver message to all attached listeners
@@ -22,6 +24,7 @@ Dispatcher.prototype.add = function add(func) {
     }
 
     this.remove(func);
+    log.info("Dispatcher added");
     this.appenders.push(func);
 };
 
@@ -38,6 +41,9 @@ Dispatcher.prototype.remove = function remove(func) {
     var io = this.appenders.indexOf(func);
     if (io >= 0) {
         this.appenders.splice(io, 1);
+        log.info("Dispatcher removed");
+    } else {
+        log.info("No dispatcher removed");
     }
 };
 

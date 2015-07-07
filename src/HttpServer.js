@@ -1,10 +1,11 @@
 "use strict";
 
-var WebSocketServer = require('ws').Server
-    , uuid = require('uuid')
-    , http = require('http')
-    , buildFilter = require('./Filters')
-    , express = require('express');
+var WebSocketServer = require("ws").Server
+    , uuid = require("uuid")
+    , http = require("http")
+    , buildFilter = require("./Filters")
+    , express = require("express")
+    , log = require("sgwin").with("http");
 
 
 var totalAppenders = 0;
@@ -27,7 +28,7 @@ var WebsocketAppender = function WebsocketAppender(ws, dispatcher, auth) {
     this.filter = null;
     this.uuid = uuid.v4();
 
-    this.packetsIn = 0;
+    this.packetsOut = 0;
     this.packetsFiltered = 0;
 
     totalAppenders++;
@@ -54,11 +55,12 @@ var WebsocketAppender = function WebsocketAppender(ws, dispatcher, auth) {
  * @param {string} payload
  */
 WebsocketAppender.prototype.toBrowser = function toBrowser(key, payload) {
-    this.packetsIn++;
+    this.packetsOut++;
     if (!this.filter(key)) {
         this.packetsFiltered++;
         return;
     }
+    log.out("Sending packet to client");
     this.ws.send(
         "log\n" +
         key.withoutRealm() + "\n" +
@@ -75,8 +77,10 @@ WebsocketAppender.prototype.toBrowser = function toBrowser(key, payload) {
  */
 WebsocketAppender.prototype.authenticate = function authenticate(data) {
     data = data.split("\n");
+    log.in("Received :type", {type: data[0]});
     if (data[0] === "subscribe") {
         if (data.length !== 5) {
+            log.warn("Invalid subscribe packet");
             this.ws.send("error\nInvalid subscribe packet", nullFunc);
         } else {
             var realm = data[1];
@@ -86,6 +90,7 @@ WebsocketAppender.prototype.authenticate = function authenticate(data) {
             var hash = data[4];
 
             if (!this.auth(realm, nonce, this.filterString, hash)) {
+                log.warn("Invalid hash signature or realm :realm", {realm: realm});
                 this.ws.send("error\nInvalid hash signature for realm " + realm, nullFunc);
             } else {
                 // Auth success
@@ -93,6 +98,7 @@ WebsocketAppender.prototype.authenticate = function authenticate(data) {
                     this.registered = true;
                     this.dispatcher.add(this.appender);
                 }
+                log.success("Websocket connection authenticated and registered");
                 this.ws.send("connected\n");
             }
         }
@@ -105,8 +111,10 @@ WebsocketAppender.prototype.authenticate = function authenticate(data) {
  */
 WebsocketAppender.prototype.onClose = function onClose() {
     totalAppenders--;
+    log.info("Websocket connection closed");
     // Unregister from dispatcher
     if (this.registered) {
+        log.info("Listener unregistered");
         this.dispatcher.remove(this.appender)
     }
 };
@@ -145,6 +153,7 @@ HttpServer.prototype.start = function start(clb) {
     this.wss = new WebSocketServer({server: this.server});
 
     this.wss.on("connection", function (ws) {
+        log.info("New websocket connection");
         new WebsocketAppender(ws, that.dispatcher, that.auth);
     });
 };

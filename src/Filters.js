@@ -1,5 +1,8 @@
 "use strict";
 
+var log = require("sgwin").with("filter");
+
+
 /**
  * Always returns true
  * Used for cases, when no filters applied
@@ -31,9 +34,11 @@ var SimpleTagFilter = function SimpleTagFilter(tag) {
 var getFilter = function getFilter(query) {
     if (!query) {
         // Empty query
+        log.info("Empty filter function built");
         return AllowAll;
     } else {
         // Simple tag
+        log.info("Filter for tag :name built", {name: query});
         return SimpleTagFilter(query);
     }
 };
